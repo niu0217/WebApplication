@@ -613,5 +613,328 @@ def topic(request, topic_id):
 
 ![image-20231211151038089](README.assets/image-20231211151038089.png) 
 
-## 1.2 用户账户
+## 2. 用户账户
+
+### 2.1 让用户能输入数据
+
+#### 2.1.1 添加新主题
+
+（1）创建表单
+
+创建文件：`/Dev/learning_log/learning_logs/forms.py`
+
+```python
+from django import forms
+
+from .models import Topic
+
+
+class TopicForm(forms.ModelForm):
+    class Meta:
+        model = Topic
+        fields = ['text']
+        labels = {'text': ''}
+
+```
+
+（2）添加URL模式
+
+修改文件：`/Dev/learning_log/learning_logs/urls.py`
+
+```python
+"""定义learning_logs的URL模式"""
+
+from django.urls import path
+
+from . import views
+
+app_name = 'learning_logs'
+urlpatterns = [
+    # 主页
+    path('', views.index, name='index'),
+    # 显示所有主题的页面
+    path('topics/', views.topics, name='topics'),
+    # 特定主题的详细页面
+    path('topics/<int:topic_id>/', views.topic, name='topic'),
+    # 用于添加新主题的网页
+    path('new_topic/', views.new_topic, name='new_topic'),
+]
+
+```
+
+（3）视图
+
+修改文件：`/Dev/learning_log/learning_logs/views.py`
+
+```python
+from django.shortcuts import render, redirect
+
+from .models import Topic
+from .forms import TopicForm
+
+
+# Create your views here.
+def index(request):
+    """学习笔记的主页"""
+    return render(request, 'learning_logs/index.html')
+
+
+def topics(request):
+    """显示所有的主题"""
+    topics = Topic.objects.order_by('date_added')
+    context = {'topics': topics}
+    return render(request, 'learning_logs/topics.html', context)
+
+
+def topic(request, topic_id):
+    """显示单个主题及其所有的条目"""
+    topic = Topic.objects.get(id=topic_id)
+    entries = topic.entry_set.order_by('-date_added')
+    context = {'topic': topic, 'entries': entries}
+    return render(request, 'learning_logs/topic.html', context)
+
+
+def new_topic(request):
+    """添加新主题"""
+    if request.method != 'POST':
+        # 未提交数据：创建一个新表单
+        form = TopicForm()
+    else:
+        # POST提交的数据：对数据进行处理
+        form = TopicForm(data=request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('learning_logs:topics')
+
+    # 显示空表单或指出表单数据无效
+    context = {'form': form}
+    return render(request, 'learning_logs/new_topic.html', context)
+
+```
+
+（4）模版
+
+创建文件：`/Dev/learning_log/learning_logs/templates/learning_logs/new_topic.html`
+
+```html
+{% extends 'learning_logs/base.html' %}
+
+{% block content %}
+  <p> Add a new topic:</p>
+
+  <form action="{% url 'learning_logs:new_topic' %}" method="post">
+      {% csrf_token %}
+      {{ form.as_div }}
+      <button name="submit">Add topic</button>
+  </form>
+
+{% endblock content %}
+
+```
+
+（5）链接到页面new_topic
+
+修改文件：`/Dev/learning_log/learning_logs/templates/learning_logs/topics.html`
+
+```html
+{% extends 'learning_logs/base.html' %}
+
+{% block content %}
+  <p>Topics</p>
+
+  <ul>
+      {% for topic in topics %}
+        <li>
+            <a href="{% url 'learning_logs:topic' topic.id %}">{{ topic.text }}</a>
+        </li>
+      {% empty %}
+        <li>No topics have been added yet.</li>
+      {% endfor %}
+  </ul>
+
+  <a href="{% url 'learning_logs:new_topic' %}">Add a new topic</a>
+
+{% endblock content %}
+
+```
+
+#### 2.1.2 添加新条目
+
+（1）修改表单
+
+修改文件：`/Dev/learning_log/learning_logs/forms.py`
+
+```python
+from django import forms
+
+from .models import Topic, Entry
+
+
+class TopicForm(forms.ModelForm):
+    class Meta:
+        model = Topic
+        fields = ['text']
+        labels = {'text': ''}
+
+
+class EntryForm(forms.ModelForm):
+    class Meta:
+        model = Entry
+        fields = ['text']
+        labels = {'text': ''}
+        widgets = {'text': forms.Textarea(attrs={'col': 80})}
+
+
+```
+
+（2）添加URL模式
+
+修改文件：`/Dev/learning_log/learning_logs/urls.py`
+
+```python
+"""定义learning_logs的URL模式"""
+
+from django.urls import path
+
+from . import views
+
+app_name = 'learning_logs'
+urlpatterns = [
+    # 主页
+    path('', views.index, name='index'),
+    # 显示所有主题的页面
+    path('topics/', views.topics, name='topics'),
+    # 特定主题的详细页面
+    path('topics/<int:topic_id>/', views.topic, name='topic'),
+    # 用于添加新主题的网页
+    path('new_topic/', views.new_topic, name='new_topic'),
+    # 用于添加新条目的页面
+    path('new_entry/<int:topic_id>/', views.new_entry, name='new_entry')
+]
+
+```
+
+（3）视图
+
+修改文件：`/Dev/learning_log/learning_logs/views.py`
+
+```python
+from django.shortcuts import render, redirect
+
+from .models import Topic
+from .forms import TopicForm, EntryForm
+
+
+# Create your views here.
+def index(request):
+    """学习笔记的主页"""
+    return render(request, 'learning_logs/index.html')
+
+
+def topics(request):
+    """显示所有的主题"""
+    topics = Topic.objects.order_by('date_added')
+    context = {'topics': topics}
+    return render(request, 'learning_logs/topics.html', context)
+
+
+def topic(request, topic_id):
+    """显示单个主题及其所有的条目"""
+    topic = Topic.objects.get(id=topic_id)
+    entries = topic.entry_set.order_by('-date_added')
+    context = {'topic': topic, 'entries': entries}
+    return render(request, 'learning_logs/topic.html', context)
+
+
+def new_topic(request):
+    """添加新主题"""
+    if request.method != 'POST':
+        # 未提交数据：创建一个新表单
+        form = TopicForm()
+    else:
+        # POST提交的数据：对数据进行处理
+        form = TopicForm(data=request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('learning_logs:topics')
+
+    # 显示空表单或指出表单数据无效
+    context = {'form': form}
+    return render(request, 'learning_logs/new_topic.html', context)
+
+
+def new_entry(request, topic_id):
+    """在特定主题中添加新条目"""
+    topic = Topic.objects.get(id=topic_id)
+    if request.method != 'POST':
+        # 未提交数据：创建一个空表单
+        form = EntryForm()
+    else:
+        # POST提交的数据：对数据进行处理
+        form = EntryForm(data=request.POST)
+        if form.is_valid():
+            new_entry = form.save(commit=False)
+            new_entry.topic = topic
+            new_entry.save()
+            return redirect('learning_logs:topic', topic_id=topic_id)
+
+    # 显示空表单或指出表单数据无效
+    context = {'topic': topic, 'form': form}
+    return render(request, 'learning_logs/new_entry.html', context)
+
+```
+
+（4）模版
+
+创建文件：`/Dev/learning_log/learning_logs/templates/learning_logs/new_entry.html`
+
+```html
+{% extends 'learning_logs/base.html' %}
+
+{% block content %}
+  <p><a href="{% url 'learning_logs:topic' topic.id %}">{{ topic }}</a></p>
+
+  <p> Add a new entry:</p>
+  <form action="{% url 'learning_logs:new_entry' topic.id %}" method="post">
+      {% csrf_token %}
+      {{ form.as_div }}
+      <button name="submit">Add entry</button>
+  </form>
+
+{% endblock content %}
+
+```
+
+（5）链接到页面new_entry
+
+修改文件：`/Dev/learning_log/learning_logs/templates/learning_logs/topic.html`
+
+```html
+{% extends 'learning_logs/base.html' %}
+
+{% block content %}
+
+  <p>Topic: {{ topic.text }}</p>
+
+  <p>Entries: </p>
+  <p>
+     <a href="{% url 'learning_logs:new_entry' topic.id %}">Add a new entry</a>
+  </p>
+
+  <ul>
+      {% for entry in entries %}
+        <li>
+            <p>{{ entry.date_added|date:'M d, Y H:i' }}</p>
+            <p>{{ entry.text|linebreaks }}</p>
+        </li>
+      {% empty %}
+        <li>There are no entries for this topic yet.</li>
+      {% endfor %}
+  </ul>
+
+{% endblock content %}
+
+```
+
+#### 2.1.3 编辑条目
 
