@@ -20,5 +20,6 @@ from django.urls import path, include
 # urlpatterns包含项目中应用程序的URL
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/', include('accounts.urls')),
     path('', include('learning_logs.urls'))
 ]

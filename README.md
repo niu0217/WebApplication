@@ -1112,3 +1112,178 @@ def edit_entry(request, entry_id):
 
 ```
 
+### 2.2 创建用户账户
+
+#### 2.2.1 设置登录页面
+
+（1）创建应用程序accounts
+
+```bash
+(ll_env)  niu0217@niuM  ~/niuGithub/WebApplication/Dev/learning_log   main ±  python manage.py startapp accounts     
+(ll_env)  niu0217@niuM  ~/niuGithub/WebApplication/Dev/learning_log   main ±  ls   
+accounts      db.sqlite3    learning_logs ll_env        ll_project    manage.py
+(ll_env)  niu0217@niuM  ~/niuGithub/WebApplication/Dev/learning_log   main ±  ls accounts 
+__init__.py admin.py    apps.py     migrations  models.py   tests.py    views.py
+(ll_env)  niu0217@niuM  ~/niuGithub/WebApplication/Dev/learning_log   main ±  
+
+```
+
+（2）将accounts加入到settings.py
+
+修改`/Dev/learning_log/ll_project/settings.py`，将其中的INSTALLED_APPS变量修改为如下形式：
+
+```python
+INSTALLED_APPS = [
+    # 我的应用程序
+    'learning_logs',
+    'accounts',
+
+    # Django默认添加的应用程序
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+]
+```
+
+（3）设置URL
+
+修改文件：`/Dev/learning_log/ll_project/urls.py`
+
+```python
+"""
+URL configuration for ll_project project.
+
+The `urlpatterns` list routes URLs to views. For more information please see:
+    https://docs.djangoproject.com/en/4.2/topics/http/urls/
+Examples:
+Function views
+    1. Add an import:  from my_app import views
+    2. Add a URL to urlpatterns:  path('', views.home, name='home')
+Class-based views
+    1. Add an import:  from other_app.views import Home
+    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
+Including another URLconf
+    1. Import the include() function: from django.urls import include, path
+    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+"""
+from django.contrib import admin
+from django.urls import path, include
+
+# urlpatterns包含项目中应用程序的URL
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('accounts/', include('accounts.urls')),
+    path('', include('learning_logs.urls'))
+]
+
+```
+
+添加文件：`/Dev/learning_log/accounts/urls.py`
+
+```python
+"""定义accounts的URL模式"""
+
+from django.urls import path, include
+
+app_name = 'accounts'
+urlpatterns = [
+    # 包含默认的身份认证URL
+    path('', include('django.contrib.auth.urls')),
+]
+
+```
+
+（4）设置模版
+
+添加文件：`/Dev/learning_log/accounts/templates/registration/login.html`
+
+```html
+{% extends 'learning_logs/base.html' %}
+
+{% block content %}
+
+  {% if form.errors %}
+    <p>Your username and password didn't match. Please try again.</p>
+  {% endif %}
+
+  <form action="{% url 'accounts:login' %}" method='post'>
+    {% csrf_token %}
+    {{ form.as_div }}
+
+    <button name="submit">Log in</button>
+  </form>
+
+{% endblock content %}
+
+```
+
+（5）设置LOGIN_REDIRECT_URL
+
+修改文件：在`/Dev/learning_log/ll_project/settings.py`的最后面添加：
+
+```python
+# 我的设置
+LOGIN_REDIRECT_URL = 'learning_logs:index'
+```
+
+（6）链接到登录界面
+
+修改文件：`/Dev/learning_log/learning_logs/templates/learning_logs/base.html`
+
+```html
+<p>
+  <a href="{% url 'learning_logs:index' %}">Learning Log</a> -
+  <a href="{% url 'learning_logs:topics' %}">Topics</a> -
+  {% if user.is_authenticated %}
+    Hello, {{ user.username }}.
+  {% else %}
+    <a href="{% url 'accounts:login' %}">Log in</a>
+  {% endif %}
+</p>
+
+{% block content %}{% endblock content %}
+
+```
+
+网址：http://127.0.0.1:8000/accounts/login/
+
+![image-20231211175603522](README.assets/image-20231211175603522.png) 
+
+#### 2.2.2 注销
+
+（1）修改文件：`/Dev/learning_log/learning_logs/templates/learning_logs/base.html`
+
+```html
+<p>
+  <a href="{% url 'learning_logs:index' %}">Learning Log</a> -
+  <a href="{% url 'learning_logs:topics' %}">Topics</a> -
+  {% if user.is_authenticated %}
+    Hello, {{ user.username }}.
+  {% else %}
+    <a href="{% url 'accounts:login' %}">Log in</a>
+  {% endif %}
+</p>
+
+{% block content %}{% endblock content %}
+
+{% if user.is_authenticated %}
+  <hr />
+  <form action="{% url 'accounts:logout' %}" method="post">
+    {% csrf_token %}
+    <button name="submit">Log out</button>
+  </form>
+{% endif %}
+
+```
+
+（2）设置LOGOUT_REDIRECT_URL
+
+修改文件：在`/Dev/learning_log/ll_project/settings.py`的最后面添加：
+
+```python
+LOGOUT_REDIRECT_URL = 'learning_logs:index'
+```
+
