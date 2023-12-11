@@ -1287,3 +1287,105 @@ LOGIN_REDIRECT_URL = 'learning_logs:index'
 LOGOUT_REDIRECT_URL = 'learning_logs:index'
 ```
 
+#### 2.2.3 注册页面
+
+（1）注册页面的URL模式
+
+修改文件：`/Dev/learning_log/accounts/urls.py`
+
+```python
+"""定义accounts的URL模式"""
+
+from django.urls import path, include
+
+from . import views
+
+app_name = 'accounts'
+urlpatterns = [
+    # 包含默认的身份认证URL
+    path('', include('django.contrib.auth.urls')),
+    # 注册页面
+    path('register/', views.register, name="register"),
+]
+
+```
+
+（2）视图函数
+
+修改文件：`/Dev/learning_log/accounts/views.py`
+
+```python
+from django.shortcuts import render, redirect
+from django.contrib.auth import login
+from django.contrib.auth.forms import UserCreationForm
+
+
+def register(request):
+    """注册新用户"""
+    if request.method != 'POST':
+        # Display blank registration form.
+        form = UserCreationForm()
+    else:
+        # Process completed form.
+        form = UserCreationForm(data=request.POST)
+
+        if form.is_valid():
+            new_user = form.save()
+            # Log the user in and then redirect to home page.
+            login(request, new_user)
+            return redirect('learning_logs:index')
+
+    # Display a blank or invalid form.
+    context = {'form': form}
+    return render(request, 'registration/register.html', context)
+
+```
+
+（3）注册模版
+
+添加文件：`/Dev/learning_log/accounts/templates/registration/register.html`
+
+```html
+{% extends "learning_logs/base.html" %}
+
+{% block content %}
+
+  <form action="{% url 'accounts:register' %}" method='post'>
+    {% csrf_token %}
+    {{ form.as_div }}
+
+    <button name="submit">Register</button>
+  </form>
+
+{% endblock content %}
+
+```
+
+（4）链接到注册页面
+
+修改文件：`/Dev/learning_log/learning_logs/templates/learning_logs/base.html`
+
+```html
+<p>
+  <a href="{% url 'learning_logs:index' %}">Learning Log</a> -
+  <a href="{% url 'learning_logs:topics' %}">Topics</a> -
+  {% if user.is_authenticated %}
+    Hello, {{ user.username }}.
+  {% else %}
+    <a href="{% url 'accounts:register' %}">Register</a> -
+    <a href="{% url 'accounts:login' %}">Log in</a>
+  {% endif %}
+</p>
+
+{% block content %}{% endblock content %}
+
+{% if user.is_authenticated %}
+  <hr />
+  <form action="{% url 'accounts:logout' %}" method="post">
+    {% csrf_token %}
+    <button name="submit">Log out</button>
+  </form>
+{% endif %}
+
+```
+
